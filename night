@@ -1537,102 +1537,33 @@ end
 
 function ativarNoVFX()
     if Connections.VFX then Connections.VFX:Disconnect() end
-    if Connections.VFXTerrain then Connections.VFXTerrain:Disconnect() end
-    if Connections.VFXLighting then Connections.VFXLighting:Disconnect() end
 
-    NoVFXOriginalMaterials = {}
-
-    local COR_ROXO = Color3.fromRGB(18, 0, 38)
-
-    -- Helper: verificar se uma parte é de um inimigo/NPC
-    local function isEnemyPart(obj)
-        local model = obj:FindFirstAncestorOfClass("Model")
-        if model and model:FindFirstChildOfClass("Humanoid") then
-            local char = LocalPlayer.Character
-            if char and model == char then return false end
-            return true
-        end
-        return false
-    end
-
-    -- 1. Desativar TODAS as partículas/sons/efeitos
+    -- 1. Desativar partículas/sons/efeitos visuais
     for _, obj in ipairs(workspace:GetDescendants()) do
         disableVFX(obj)
     end
+
+    -- 2. Novos efeitos também são desativados
     Connections.VFX = workspace.DescendantAdded:Connect(disableVFX)
 
-    -- 2. Terreno roxo escuro
+    -- 3. Desativar sombras e efeitos de lighting (só fps, sem mexer nas cores)
     pcall(function()
-        local terrain = workspace:FindFirstChildOfClass("Terrain")
-        if terrain then
-            terrain.WaterWaveSize = 0
-            terrain.WaterWaveSpeed = 0
-            terrain.WaterReflectance = 0
-            terrain.WaterTransparency = 1
-            terrain.ShadowCast = false
-            terrain.MaterialBrightness = 0
-            terrain.MaterialSaturation = 0
-            terrain.MaterialTint = COR_ROXO
+        local lighting = game:GetService("Lighting")
+        lighting.GlobalShadows = false
+        lighting.EnvironmentDiffuseScale = 0
+        lighting.EnvironmentSpecularScale = 0
+
+        for _, effect in ipairs(lighting:GetDescendants()) do
+            if effect:IsA("Atmosphere") or effect:IsA("Sky") or effect:IsA("BloomEffect")
+                or effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect")
+                or effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
+                effect.Enabled = false
+                table.insert(NoVFXObjects, effect)
+            end
         end
     end)
 
-    -- 3. Partes do mapa ficam quase invisíveis (só inimigos ficam visíveis)
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        pcall(function()
-            if obj:IsA("BasePart") and not obj:IsA("Terrain") then
-                local char = LocalPlayer.Character
-                if char and obj:IsDescendantOf(char) then return end
-
-                NoVFXOriginalMaterials[obj] = {
-                    Material = obj.Material,
-                    Color = obj.Color,
-                    Reflectance = obj.Reflectance,
-                    Transparency = obj.Transparency
-                }
-
-                if isEnemyPart(obj) then
-                    -- Inimigos ficam visíveis mas sem textura
-                    obj.Material = Enum.Material.SmoothPlastic
-                    obj.Reflectance = 0
-                else
-                    -- Mapa fica quase invisível
-                    obj.Transparency = 0.95
-                    obj.Color = COR_ROXO
-                    obj.Material = Enum.Material.SmoothPlastic
-                    obj.Reflectance = 0
-                end
-
-                for _, child in ipairs(obj:GetChildren()) do
-                    if child:IsA("Texture") or child:IsA("Decal") then
-                        child:Destroy()
-                    end
-                end
-            end
-        end)
-    end
-
-    -- 4. Novas partes
-    Connections.VFXTerrain = workspace.DescendantAdded:Connect(function(obj)
-        if not NightHub.NoVFXAtivo then return end
-        pcall(function()
-            if obj:IsA("BasePart") and not obj:IsA("Terrain") then
-                local char = LocalPlayer.Character
-                if char and obj:IsDescendantOf(char) then return end
-
-                if isEnemyPart(obj) then
-                    obj.Material = Enum.Material.SmoothPlastic
-                    obj.Reflectance = 0
-                else
-                    obj.Transparency = 0.95
-                    obj.Color = COR_ROXO
-                    obj.Material = Enum.Material.SmoothPlastic
-                    obj.Reflectance = 0
-                end
-            end
-        end)
-    end)
-
-    -- 5. SurfaceGui
+    -- 4. SurfaceGui
     for _, obj in ipairs(workspace:GetDescendants()) do
         pcall(function()
             if obj:IsA("SurfaceGui") then
@@ -1642,89 +1573,10 @@ function ativarNoVFX()
         end)
     end
 
-    -- 6. Lighting roxo escuro
-    pcall(function()
-        local lighting = game:GetService("Lighting")
-        lighting.GlobalShadows = false
-        lighting.EnvironmentDiffuseScale = 0
-        lighting.EnvironmentSpecularScale = 0
-        lighting.Brightness = 0
-        lighting.Ambient = COR_ROXO
-        lighting.OutdoorAmbient = COR_ROXO
-        lighting.ClockTime = 14
-        lighting.FogEnd = 100000
-        lighting.FogColor = COR_ROXO
-
-        for _, effect in ipairs(lighting:GetDescendants()) do
-            if effect:IsA("Atmosphere") or effect:IsA("Sky") or effect:IsA("BloomEffect")
-                or effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect")
-                or effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
-                effect.Enabled = false
-                effect.Parent = nil
-            end
-        end
-    end)
-
-    -- 7. LOOP: manter fundo roxo + partes invisíveis constantemente
-    Connections.VFXDarkLoop = task.spawn(function()
-        while NightHub.NoVFXAtivo do
-            pcall(function()
-                local lighting = game:GetService("Lighting")
-                lighting.Brightness = 0
-                lighting.Ambient = COR_ROXO
-                lighting.OutdoorAmbient = COR_ROXO
-                lighting.GlobalShadows = false
-                lighting.FogColor = COR_ROXO
-
-                local terrain = workspace:FindFirstChildOfClass("Terrain")
-                if terrain then
-                    terrain.MaterialBrightness = 0
-                    terrain.MaterialSaturation = 0
-                    terrain.MaterialTint = COR_ROXO
-                    terrain.WaterTransparency = 1
-                end
-
-                local char = LocalPlayer.Character
-                for _, obj in ipairs(workspace:GetDescendants()) do
-                    if obj:IsA("BasePart") and not obj:IsA("Terrain") then
-                        if not (char and obj:IsDescendantOf(char)) then
-                            if isEnemyPart(obj) then
-                                obj.Material = Enum.Material.SmoothPlastic
-                                obj.Reflectance = 0
-                            else
-                                obj.Transparency = 0.95
-                                obj.Color = COR_ROXO
-                                obj.Material = Enum.Material.SmoothPlastic
-                                obj.Reflectance = 0
-                            end
-                        end
-                    end
-                end
-            end)
-            task.wait(0.2)
-        end
-    end)
-
-    print("[NoVFX] Modo dark roxo ativado!")
+    print("[NoVFX] Efeitos visuais desativados!")
 end
 
 function desativarNoVFX()
-    -- Restaurar materiais e cores originais das partes
-    if NoVFXOriginalMaterials then
-        for obj, data in pairs(NoVFXOriginalMaterials) do
-            pcall(function()
-                if obj and obj.Parent then
-                    obj.Material = data.Material
-                    obj.Color = data.Color
-                    obj.Reflectance = data.Reflectance
-                    obj.Transparency = data.Transparency
-                end
-            end)
-        end
-        NoVFXOriginalMaterials = {}
-    end
-
-    -- Restaurar UIs escondidas
     for _, obj in ipairs(NoVFXObjects) do
         pcall(function()
             if obj and obj.Parent then
@@ -1734,8 +1586,10 @@ function desativarNoVFX()
                     obj.Enabled = true
                 elseif obj:IsA("Sound") then
                     obj.Volume = 0.5
-                elseif obj:IsA("Decal") or obj:IsA("Texture") then
-                    obj.Transparency = 0
+                elseif obj:IsA("Atmosphere") or obj:IsA("Sky") or obj:IsA("BloomEffect")
+                    or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect")
+                    or obj:IsA("BlurEffect") or obj:IsA("DepthOfFieldEffect") then
+                    obj.Enabled = true
                 elseif obj:IsA("SurfaceGui") or obj:IsA("BillboardGui") or obj:IsA("ScreenGui") then
                     obj.Enabled = true
                 end
@@ -1744,35 +1598,14 @@ function desativarNoVFX()
     end
     NoVFXObjects = {}
 
-    -- Restaurar lighting
     pcall(function()
         local lighting = game:GetService("Lighting")
         lighting.GlobalShadows = true
         lighting.EnvironmentDiffuseScale = 1
         lighting.EnvironmentSpecularScale = 1
-        lighting.Brightness = 2
-        lighting.Ambient = Color3.fromRGB(80, 80, 80)
-        lighting.OutdoorAmbient = Color3.fromRGB(80, 80, 80)
-        lighting.FogColor = Color3.fromRGB(192, 192, 192)
-    end)
-
-    -- Restaurar terreno
-    pcall(function()
-        local terrain = workspace:FindFirstChildOfClass("Terrain")
-        if terrain then
-            terrain.WaterWaveSize = 0.15
-            terrain.WaterWaveSpeed = 10
-            terrain.WaterReflectance = 0.02
-            terrain.WaterTransparency = 0.8
-            terrain.MaterialBrightness = 0.3
-            terrain.MaterialSaturation = 0
-            terrain.MaterialTint = Color3.fromRGB(128, 128, 128)
-        end
     end)
 
     if Connections.VFX then Connections.VFX:Disconnect(); Connections.VFX = nil end
-    if Connections.VFXTerrain then Connections.VFXTerrain:Disconnect(); Connections.VFXTerrain = nil end
-    if Connections.VFXLighting then Connections.VFXLighting:Disconnect(); Connections.VFXLighting = nil end
 
     print("[NoVFX] Modo normal restaurado!")
 end
