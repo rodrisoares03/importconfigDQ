@@ -1648,6 +1648,43 @@ function ativarNoVFX()
         end
     end)
 
+    -- 7. LOOP: manter tudo preto constantemente (jogo tenta reverter)
+    Connections.VFXDarkLoop = task.spawn(function()
+        while NightHub.NoVFXAtivo do
+            pcall(function()
+                -- Lighting
+                local lighting = game:GetService("Lighting")
+                lighting.Brightness = 0
+                lighting.Ambient = Color3.fromRGB(0, 0, 0)
+                lighting.OutdoorAmbient = Color3.fromRGB(0, 0, 0)
+                lighting.GlobalShadows = false
+                lighting.FogColor = Color3.fromRGB(0, 0, 0)
+
+                -- Terrain
+                local terrain = workspace:FindFirstChildOfClass("Terrain")
+                if terrain then
+                    terrain.MaterialBrightness = 0
+                    terrain.MaterialSaturation = 0
+                    terrain.MaterialTint = Color3.fromRGB(0, 0, 0)
+                    terrain.WaterTransparency = 1
+                end
+
+                -- Partes pretas
+                local char = LocalPlayer.Character
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA("BasePart") and not obj:IsA("Terrain") then
+                        if not (char and obj:IsDescendantOf(char)) then
+                            obj.Color = Color3.fromRGB(5, 5, 5)
+                            obj.Material = Enum.Material.SmoothPlastic
+                            obj.Reflectance = 0
+                        end
+                    end
+                end
+            end)
+            task.wait(0.2)
+        end
+    end)
+
     print("[NoVFX] Modo ultra dark ativado!")
 end
 
