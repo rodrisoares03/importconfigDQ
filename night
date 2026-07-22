@@ -2529,14 +2529,19 @@ task.spawn(function()
                 local ok2, cfg = pcall(cfgFunc)
                 if ok2 and type(cfg) == "table" then
                     print("[NightHub] Config decodificada com sucesso, a aplicar...")
+                    -- AutoStart PRIMEIRO, antes de tudo
+                    if cfg.AutoStartAtivo then
+                        NightHub.AutoStartAtivo = true
+                        pcall(iniciarAutoStart)
+                        print("[NightHub] AutoStart ativado imediatamente!")
+                    end
                     for _, v in pairs(_G) do
                         if type(v) == "table" and v.ApplyConfig then
                             v.ApplyConfig(cfg)
                             print("[NightHub] Config importada via loadstring!")
-                            return
+                            break
                         end
                     end
-                    print("[NightHub] ApplyConfig não encontrado no _G!")
                 else
                     print("[NightHub] Erro ao decodificar config:", ok2, cfg)
                 end
