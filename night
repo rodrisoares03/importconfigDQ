@@ -2502,14 +2502,16 @@ task.spawn(function()
     -- Espera o NightHub inicializar
     task.wait(2)
 
-    -- Loop infinito até encontrar config
+    -- Loop até encontrar config
     for i = 1, 30 do
         -- Formato 1: _G.NightHubConfigLoadstring contém loadstring da config
         if _G.NightHubConfigLoadstring and type(_G.NightHubConfigLoadstring) == "string" then
+            print("[NightHub] Config loadstring detectado, a processar...")
             local ok, cfgFunc = pcall(loadstring, _G.NightHubConfigLoadstring)
             if ok and cfgFunc then
                 local ok2, cfg = pcall(cfgFunc)
                 if ok2 and type(cfg) == "table" then
+                    print("[NightHub] Config decodificada com sucesso, a aplicar...")
                     for _, v in pairs(_G) do
                         if type(v) == "table" and v.ApplyConfig then
                             v.ApplyConfig(cfg)
@@ -2517,7 +2519,12 @@ task.spawn(function()
                             return
                         end
                     end
+                    print("[NightHub] ApplyConfig não encontrado no _G!")
+                else
+                    print("[NightHub] Erro ao decodificar config:", ok2, cfg)
                 end
+            else
+                print("[NightHub] Erro ao executar loadstring:", ok, cfgFunc)
             end
         end
 
@@ -2547,4 +2554,5 @@ task.spawn(function()
 
         task.wait(0.5)
     end
+    print("[NightHub] Auto-import: nenhum config encontrado após 15s")
 end)
