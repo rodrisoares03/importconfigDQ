@@ -2261,9 +2261,7 @@ CreateSection(ConfigPage, "EXPORT / IMPORT")
 local function generateConfigLoadstring()
     local snap = getCurrentSnapshot()
     local encoded = HttpService:JSONEncode(snap)
-    local escaped = string.gsub(encoded, "\\", "\\\\")
-    escaped = string.gsub(escaped, "'", "\\'")
-    return "_G.NightHubConfigPending = game:GetService('HttpService'):JSONDecode('" .. escaped .. "')"
+    return "_G.NightHubConfigLoadstring = [==[return game:GetService('HttpService'):JSONDecode('" .. encoded .. "')]==]"
 end
 
 -- Card de Export
