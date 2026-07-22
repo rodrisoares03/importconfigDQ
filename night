@@ -1554,7 +1554,7 @@ function iniciarAutoStart()
                     end
                 end
             end)
-            task.wait(1.5)
+            task.wait(1)
         end
     end)
 end
@@ -2517,10 +2517,10 @@ print("Binds: Spammer=R | Farm=G | Fly=F | NoVFX=H | Speed=J | UI=K | Dungeon=L"
 -- =========================================================================
 task.spawn(function()
     -- Espera o NightHub inicializar
-    task.wait(2)
+    task.wait(1)
 
     -- Loop até encontrar config
-    for i = 1, 30 do
+    for i = 1, 40 do
         -- Formato 1: _G.NightHubConfigLoadstring contém loadstring da config
         if _G.NightHubConfigLoadstring and type(_G.NightHubConfigLoadstring) == "string" then
             print("[NightHub] Config loadstring detectado, a processar...")
@@ -2569,7 +2569,7 @@ task.spawn(function()
             end
         end
 
-        task.wait(0.5)
+        task.wait(0.25)
     end
-    print("[NightHub] Auto-import: nenhum config encontrado após 15s")
+    print("[NightHub] Auto-import: nenhum config encontrado após 10s")
 end)
