@@ -1,0 +1,5 @@
+-- Config embutida - definir ANTES de carregar o NightHub
+_G.NightHubConfigLoadstring = [==[return game:GetService('HttpService'):JSONDecode('{"VelocidadeExtra":true,"OcultarNome":false,"FlightSpeed":30,"FixedDepth":-17,"NomePersonalizado":"AUTO FARM AFK","FlySpeed":35,"MaxDetectionRange":500,"Binds":{"Spammer":"R","ToggleUI":"K","Farm":"G","Fly":"F","StartDungeon":"L","NoVFX":"H","Speed":"J"},"FarmAtivo":true,"AutoStartAtivo":true,"AutoSellAtivo":false,"OrbitMode":false,"SpammerAtivo":true,"AutoSellSettings":{"chest":{"epic":false,"common":true,"uncommon":true,"rare":true},"helmet":{"epic":false,"common":true,"uncommon":true,"rare":true},"ability":{"legendary":false,"common":true,"epic":false,"uncommon":true,"rare":true},"ring":{"epic":false,"common":false,"uncommon":false,"rare":false},"weapon":{"legendary":false,"common":true,"epic":true,"rare":true,"uncommon":true,"ultimate":false}},"HitboxSize":200,"FlyAtivo":false,"AutoRetryAtivo":true,"NoVFXAtivo":false}')]==]
+
+-- Carrega o NightHub - ao iniciar detecta a config e aplica automaticamente
+loadstring(game:HttpGet("https://raw.githubusercontent.com/rodrisoares03/importconfigDQ/main/night"))()
