@@ -1537,7 +1537,7 @@ function ativarNoVFX()
     -- 2. Desativar novos efeitos que surgirem
     Connections.VFX = workspace.DescendantAdded:Connect(disableVFX)
 
-    -- 3. Otimizar terreno (manter render mas reduzir qualidade)
+    -- 3. Otimizar terreno (lisinho tipo argila molhada)
     pcall(function()
         local terrain = workspace:FindFirstChildOfClass("Terrain")
         if terrain then
@@ -1546,8 +1546,50 @@ function ativarNoVFX()
             terrain.WaterReflectance = 0
             terrain.WaterTransparency = 0.9
             terrain.ShadowCast = false
+            -- Ficar tudo liso
+            terrain.MaterialBrightness = 0.3
+            terrain.MaterialSaturation = 0
+            terrain.MaterialTint = Color3.fromRGB(128, 128, 128)
         end
     end)
+
+    -- 4. Remover texturas de TODAS as partes do mapa
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        pcall(function()
+            if obj:IsA("BasePart") and not isGroundOrTerrain(obj) then
+                -- Remover textures/decals
+                for _, child in ipairs(obj:GetChildren()) do
+                    if child:IsA("Texture") or child:IsA("Decal") then
+                        child:Destroy()
+                    end
+                end
+                -- Parte fica lisa
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.Reflectance = 0
+            elseif obj:IsA("Texture") or obj:IsA("Decal") then
+                -- Decals soltos no workspace
+                obj:Destroy()
+            elseif obj:IsA("SurfaceGui") then
+                obj.Enabled = false
+            end
+        end)
+    end
+
+    -- 5. Manter partes do chão com colisão mas sem textura
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        pcall(function()
+            if obj:IsA("BasePart") and isGroundOrTerrain(obj) then
+                -- Chão mantém material mas fica liso
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.Reflectance = 0
+                for _, child in ipairs(obj:GetChildren()) do
+                    if child:IsA("Texture") or child:IsA("Decal") then
+                        child:Destroy()
+                    end
+                end
+            end
+        end)
+    end
 
     -- 4. Otimizar Lighting (fps boost)
     pcall(function()
