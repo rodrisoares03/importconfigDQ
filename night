@@ -1474,32 +1474,157 @@ end
 -- =========================================================================
 -- NoVFX
 -- =========================================================================
-local function isHabilidade(nome)
-    nome = string.upper(nome)
-    for _, k in ipairs({"PULSE","LIGHTNING","MAGIC","EFFECT","SPELL","ATTACK","BOMB","EXPLOSION","BLAST","FIRE","ICE","THUNDER","STORM","WIND","EARTH","WATER","SHADOW","LIGHT","DARK","HOLY","DEMON","DRAGON","PHOENIX","WOLF","SKILL","POWER","BURST","SLASH","CUT","STAB"}) do
-        if string.match(nome, k) then return true end
+-- NoVFX (MODO FPS BAIXO - desativa efeitos mas mantém chão/rendering)
+-- =========================================================================
+local NoVFXObjects = {}
+
+local function isGroundOrTerrain(obj)
+    -- Não mexer no chão/terrain/parts que afetam colisão
+    if obj:IsA("Terrain") then return true end
+    if obj:IsA("BasePart") then
+        local name = string.lower(obj.Name)
+        if string.find(name, "floor") or string.find(name, "ground") or string.find(name, "terrain") 
+            or string.find(name, "base") or string.find(name, "spawn") or string.find(name, "platform") then
+            return true
+        end
     end
     return false
 end
 
-function ativarNoVFX()
-    if Connections.VFX then Connections.VFX:Disconnect() end
-    Connections.VFX = workspace.DescendantAdded:Connect(function(obj)
-        if not NightHub.NoVFXAtivo then return end
-        pcall(function()
-            if isHabilidade(obj.Name) or (obj.Parent and isHabilidade(obj.Parent.Name)) then
-                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Fire") or obj:IsA("Smoke") then 
-                    obj.Enabled = false
-                elseif obj:IsA("Sound") then 
-                    obj.Volume = 0 
-                end
+local function disableVFX(obj)
+    if not NightHub.NoVFXAtivo then return end
+    pcall(function()
+        -- Não mexer no chão/terrain
+        if isGroundOrTerrain(obj) then return end
+
+        local className = obj.ClassName
+
+        -- Partículas e efeitos visuais
+        if className == "ParticleEmitter" or className == "Trail" or className == "Beam" 
+            or className == "Fire" or className == "Smoke" or className == "Sparkles"
+            or className == "Explosion" or className == "SpotLight" or className == "PointLight"
+            or className == "SurfaceLight" then
+            obj.Enabled = false
+            table.insert(NoVFXObjects, obj)
+
+        -- Sons (reduz volume em vez de desativar)
+        elseif className == "Sound" then
+            obj.Volume = 0
+            table.insert(NoVFXObjects, obj)
+
+        -- Decals e texturas em efeitos
+        elseif className == "Decal" or className == "Texture" then
+            local parent = obj.Parent
+            if parent and not isGroundOrTerrain(parent) then
+                obj.Transparency = 1
+                table.insert(NoVFXObjects, obj)
             end
-        end)
+        end
     end)
 end
 
+function ativarNoVFX()
+    -- Limpar conexões anteriores
+    if Connections.VFX then Connections.VFX:Disconnect() end
+    if Connections.VFXTerrain then Connections.VFXTerrain:Disconnect() end
+    if Connections.VFXLighting then Connections.VFXLighting:Disconnect() end
+
+    -- 1. Desativar efeitos existentes no workspace
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        disableVFX(obj)
+    end
+
+    -- 2. Desativar novos efeitos que surgirem
+    Connections.VFX = workspace.DescendantAdded:Connect(disableVFX)
+
+    -- 3. Otimizar terreno (manter render mas reduzir qualidade)
+    pcall(function()
+        local terrain = workspace:FindFirstChildOfClass("Terrain")
+        if terrain then
+            terrain.WaterWaveSize = 0
+            terrain.WaterWaveSpeed = 0
+            terrain.WaterReflectance = 0
+            terrain.WaterTransparency = 0.9
+            terrain.ShadowCast = false
+        end
+    end)
+
+    -- 4. Otimizar Lighting (fps boost)
+    pcall(function()
+        local lighting = game:GetService("Lighting")
+        lighting.GlobalShadows = false
+        lighting.EnvironmentDiffuseScale = 0
+        lighting.EnvironmentSpecularScale = 0
+        lighting.Brightness = 1
+        lighting.ClockTime = 14
+        lighting.FogEnd = 100000
+
+        -- Remover efeitos de lighting
+        for _, effect in ipairs(lighting:GetDescendants()) do
+            if effect:IsA("Atmosphere") or effect:IsA("Sky") or effect:IsA("BloomEffect")
+                or effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect")
+                or effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
+                effect.Enabled = false
+                effect.Parent = nil
+            end
+        end
+    end)
+
+    -- 5. Otimizar camera
+    pcall(function()
+        local camera = workspace.CurrentCamera
+        if camera then
+            camera.CameraType = Enum.CameraType.Custom
+        end
+    end)
+
+    print("[NoVFX] Modo FPS baixo ativado!")
+end
+
 function desativarNoVFX()
+    -- Reconectar efeitos desativados
+    for _, obj in ipairs(NoVFXObjects) do
+        pcall(function()
+            if obj and obj.Parent then
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+                    or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles")
+                    or obj:IsA("SpotLight") or obj:IsA("PointLight") or obj:IsA("SurfaceLight") then
+                    obj.Enabled = true
+                elseif obj:IsA("Sound") then
+                    obj.Volume = 0.5
+                elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                    obj.Transparency = 0
+                end
+            end
+        end)
+    end
+    NoVFXObjects = {}
+
+    -- Restaurar lighting
+    pcall(function()
+        local lighting = game:GetService("Lighting")
+        lighting.GlobalShadows = true
+        lighting.EnvironmentDiffuseScale = 1
+        lighting.EnvironmentSpecularScale = 1
+        lighting.Brightness = 2
+    end)
+
+    -- Restaurar terreno
+    pcall(function()
+        local terrain = workspace:FindFirstChildOfClass("Terrain")
+        if terrain then
+            terrain.WaterWaveSize = 0.15
+            terrain.WaterWaveSpeed = 10
+            terrain.WaterReflectance = 0.02
+            terrain.WaterTransparency = 0.8
+        end
+    end)
+
     if Connections.VFX then Connections.VFX:Disconnect(); Connections.VFX = nil end
+    if Connections.VFXTerrain then Connections.VFXTerrain:Disconnect(); Connections.VFXTerrain = nil end
+    if Connections.VFXLighting then Connections.VFXLighting:Disconnect(); Connections.VFXLighting = nil end
+
+    print("[NoVFX] Modo normal restaurado!")
 end
 
 -- =========================================================================
