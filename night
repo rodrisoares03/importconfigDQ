@@ -1431,12 +1431,23 @@ function iniciarFarm()
                         bv.Velocity = Vector3.new(0, 0, 0)
                     end
                     
-                    bg.CFrame = CFrame.new(farmRoot.Position, Vector3.new(targetPos.X, farmRoot.Position.Y, targetPos.Z))
+                    bg.CFrame = CFrame.new(farmRoot.Position, Vector3.new(targetPos.X, farmRoot.Position.Y, farmRoot.Position.Z))
                 end
             else
+                -- Sem alvo: ficar no mesmo nível, NÃO ir underground
                 orbitAngle = 0
-                local forward = farmRoot.CFrame.LookVector
-                bv.Velocity = Vector3.new(forward.X, 0, forward.Z).Unit * (NightHub.FlightSpeed * 0.7)
+                local currentY = farmRoot.Position.Y
+                local targetY = currentY
+                -- Manter altitude segura (acima do underground)
+                if targetY < -10 then targetY = -5 end
+                local safePos = Vector3.new(farmRoot.Position.X, targetY, farmRoot.Position.Z)
+                local direction = (safePos - farmRoot.Position)
+                if direction.Magnitude > 1 then
+                    bv.Velocity = direction.Unit * (NightHub.FlightSpeed * 0.5)
+                else
+                    bv.Velocity = Vector3.new(0, 0.5, 0)
+                end
+                bg.CFrame = CFrame.new(farmRoot.Position, farmRoot.Position + farmRoot.CFrame.LookVector)
             end
         end)
     end)
@@ -1620,6 +1631,23 @@ function ativarNoVFX()
         end
     end)
 
+    -- 6. Esconder UIs de fundo (health bar, exp bar, etc)
+    pcall(function()
+        local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+        for _, gui in ipairs(playerGui:GetDescendants()) do
+            if gui:IsA("BillboardGui") or gui:IsA("ScreenGui") then
+                local name = string.lower(gui.Name)
+                -- Esconder UIs de combate/status que ficam no fundo
+                if string.find(name, "health") or string.find(name, "exp") or string.find(name, "status")
+                    or string.find(name, "bar") or string.find(name, "hud") or string.find(name, "frame")
+                    or string.find(name, "portrait") or string.find(name, "circle") then
+                    gui.Enabled = false
+                    table.insert(NoVFXObjects, gui)
+                end
+            end
+        end
+    end)
+
     print("[NoVFX] Modo FPS baixo ativado!")
 end
 
@@ -1636,6 +1664,8 @@ function desativarNoVFX()
                     obj.Volume = 0.5
                 elseif obj:IsA("Decal") or obj:IsA("Texture") then
                     obj.Transparency = 0
+                elseif obj:IsA("BillboardGui") or obj:IsA("ScreenGui") then
+                    obj.Enabled = true
                 end
             end
         end)
