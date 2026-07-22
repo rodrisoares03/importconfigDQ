@@ -200,7 +200,12 @@ function applySnapshot(data)
         end
     end
 
-    -- Aplicar estados de toggle
+    -- Aplicar estados de toggle (AutoStart PRIMEIRO)
+    if data.AutoStartAtivo ~= nil then
+        NightHub.AutoStartAtivo = data.AutoStartAtivo
+        UpdateUIToggle("AutoStart", NightHub.AutoStartAtivo)
+        if NightHub.AutoStartAtivo then pcall(iniciarAutoStart) else pcall(pararAutoStart) end
+    end
     if data.SpammerAtivo ~= nil then
         NightHub.SpammerAtivo = data.SpammerAtivo
         UpdateUIToggle("Spammer", NightHub.SpammerAtivo)
@@ -234,11 +239,6 @@ function applySnapshot(data)
                 loadstring(game:HttpGet('https://raw.githubusercontent.com/ValorantIsKewl/RBX/refs/heads/main/DQAutoRetry'))()
             end)
         end
-    end
-    if data.AutoStartAtivo ~= nil then
-        NightHub.AutoStartAtivo = data.AutoStartAtivo
-        UpdateUIToggle("AutoStart", NightHub.AutoStartAtivo)
-        if NightHub.AutoStartAtivo then pcall(iniciarAutoStart) else pcall(pararAutoStart) end
     end
     if data.NoVFXAtivo ~= nil then
         UpdateUIToggle("NoVFX", data.NoVFXAtivo)
@@ -2517,7 +2517,7 @@ print("Binds: Spammer=R | Farm=G | Fly=F | NoVFX=H | Speed=J | UI=K | Dungeon=L"
 -- =========================================================================
 task.spawn(function()
     -- Espera o NightHub inicializar
-    task.wait(1)
+    task.wait(0.1)
 
     -- Loop até encontrar config
     for i = 1, 40 do
