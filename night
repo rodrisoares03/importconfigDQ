@@ -2649,7 +2649,9 @@ task.spawn(function()
         -- Formato 1: _G.NightHubConfigLoadstring contém loadstring da config
         if _G.NightHubConfigLoadstring and type(_G.NightHubConfigLoadstring) == "string" then
             print("[NightHub] Config loadstring detectado, a processar...")
-            local ok, cfgFunc = pcall(loadstring, _G.NightHubConfigLoadstring)
+            local configStr = _G.NightHubConfigLoadstring
+            _G.NightHubConfigLoadstring = nil -- limpar para não repetir
+            local ok, cfgFunc = pcall(loadstring, configStr)
             if ok and cfgFunc then
                 local ok2, cfg = pcall(cfgFunc)
                 if ok2 and type(cfg) == "table" then
@@ -2664,7 +2666,7 @@ task.spawn(function()
                         if type(v) == "table" and v.ApplyConfig then
                             v.ApplyConfig(cfg)
                             print("[NightHub] Config importada via loadstring!")
-                            break
+                            return -- PARAR o loop
                         end
                     end
                 else
@@ -2677,9 +2679,11 @@ task.spawn(function()
 
         -- Formato 2: _G.Config é tabela direta
         if _G.Config and type(_G.Config) == "table" then
+            local cfg = _G.Config
+            _G.Config = nil
             for _, v in pairs(_G) do
                 if type(v) == "table" and v.ApplyConfig then
-                    v.ApplyConfig(_G.Config)
+                    v.ApplyConfig(cfg)
                     print("[NightHub] Config importada via _G.Config!")
                     return
                 end
@@ -2701,5 +2705,4 @@ task.spawn(function()
 
         task.wait(0.25)
     end
-    print("[NightHub] Auto-import: nenhum config encontrado após 10s")
 end)
