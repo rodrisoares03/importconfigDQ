@@ -1535,20 +1535,19 @@ local function disableVFX(obj)
 end
 
 function ativarNoVFX()
-    -- Limpar conexões anteriores
     if Connections.VFX then Connections.VFX:Disconnect() end
     if Connections.VFXTerrain then Connections.VFXTerrain:Disconnect() end
     if Connections.VFXLighting then Connections.VFXLighting:Disconnect() end
 
-    -- 1. Desativar efeitos existentes no workspace
+    -- 1. Desativar VFX existentes (partículas, luzes, sons)
     for _, obj in ipairs(workspace:GetDescendants()) do
         disableVFX(obj)
     end
 
-    -- 2. Desativar novos efeitos que surgirem
+    -- 2. Desativar novos VFX que surgirem
     Connections.VFX = workspace.DescendantAdded:Connect(disableVFX)
 
-    -- 3. Otimizar terreno (lisinho tipo argila molhada)
+    -- 3. Otimizar terreno — só água e sombras, NÃO mexer na cor/textura
     pcall(function()
         local terrain = workspace:FindFirstChildOfClass("Terrain")
         if terrain then
@@ -1557,52 +1556,20 @@ function ativarNoVFX()
             terrain.WaterReflectance = 0
             terrain.WaterTransparency = 0.9
             terrain.ShadowCast = false
-            -- Ficar tudo liso
-            terrain.MaterialBrightness = 0.3
-            terrain.MaterialSaturation = 0
-            terrain.MaterialTint = Color3.fromRGB(128, 128, 128)
         end
     end)
 
-    -- 4. Remover texturas de TODAS as partes do mapa
+    -- 4. Remover SurfaceGui (ecrãs 3D) que pesam
     for _, obj in ipairs(workspace:GetDescendants()) do
         pcall(function()
-            if obj:IsA("BasePart") and not isGroundOrTerrain(obj) then
-                -- Remover textures/decals
-                for _, child in ipairs(obj:GetChildren()) do
-                    if child:IsA("Texture") or child:IsA("Decal") then
-                        child:Destroy()
-                    end
-                end
-                -- Parte fica lisa
-                obj.Material = Enum.Material.SmoothPlastic
-                obj.Reflectance = 0
-            elseif obj:IsA("Texture") or obj:IsA("Decal") then
-                -- Decals soltos no workspace
-                obj:Destroy()
-            elseif obj:IsA("SurfaceGui") then
+            if obj:IsA("SurfaceGui") then
                 obj.Enabled = false
+                table.insert(NoVFXObjects, obj)
             end
         end)
     end
 
-    -- 5. Manter partes do chão com colisão mas sem textura
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        pcall(function()
-            if obj:IsA("BasePart") and isGroundOrTerrain(obj) then
-                -- Chão mantém material mas fica liso
-                obj.Material = Enum.Material.SmoothPlastic
-                obj.Reflectance = 0
-                for _, child in ipairs(obj:GetChildren()) do
-                    if child:IsA("Texture") or child:IsA("Decal") then
-                        child:Destroy()
-                    end
-                end
-            end
-        end)
-    end
-
-    -- 4. Otimizar Lighting (fps boost)
+    -- 5. Otimizar Lighting
     pcall(function()
         local lighting = game:GetService("Lighting")
         lighting.GlobalShadows = false
@@ -1612,7 +1579,6 @@ function ativarNoVFX()
         lighting.ClockTime = 14
         lighting.FogEnd = 100000
 
-        -- Remover efeitos de lighting
         for _, effect in ipairs(lighting:GetDescendants()) do
             if effect:IsA("Atmosphere") or effect:IsA("Sky") or effect:IsA("BloomEffect")
                 or effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect")
@@ -1623,24 +1589,14 @@ function ativarNoVFX()
         end
     end)
 
-    -- 5. Otimizar camera
-    pcall(function()
-        local camera = workspace.CurrentCamera
-        if camera then
-            camera.CameraType = Enum.CameraType.Custom
-        end
-    end)
-
-    -- 6. Esconder UIs de fundo (health bar, exp bar, etc)
+    -- 6. Esconder HUDs pesados (só HP bar e exp bar do jogo)
     pcall(function()
         local playerGui = LocalPlayer:WaitForChild("PlayerGui")
         for _, gui in ipairs(playerGui:GetDescendants()) do
-            if gui:IsA("BillboardGui") or gui:IsA("ScreenGui") then
+            if gui:IsA("BillboardGui") then
                 local name = string.lower(gui.Name)
-                -- Esconder UIs de combate/status que ficam no fundo
-                if string.find(name, "health") or string.find(name, "exp") or string.find(name, "status")
-                    or string.find(name, "bar") or string.find(name, "hud") or string.find(name, "frame")
-                    or string.find(name, "portrait") or string.find(name, "circle") then
+                if string.find(name, "health") or string.find(name, "hp")
+                    or string.find(name, "exp") or string.find(name, "portrait") then
                     gui.Enabled = false
                     table.insert(NoVFXObjects, gui)
                 end
@@ -1652,7 +1608,6 @@ function ativarNoVFX()
 end
 
 function desativarNoVFX()
-    -- Reconectar efeitos desativados
     for _, obj in ipairs(NoVFXObjects) do
         pcall(function()
             if obj and obj.Parent then
@@ -1664,7 +1619,7 @@ function desativarNoVFX()
                     obj.Volume = 0.5
                 elseif obj:IsA("Decal") or obj:IsA("Texture") then
                     obj.Transparency = 0
-                elseif obj:IsA("BillboardGui") or obj:IsA("ScreenGui") then
+                elseif obj:IsA("SurfaceGui") or obj:IsA("BillboardGui") or obj:IsA("ScreenGui") then
                     obj.Enabled = true
                 end
             end
@@ -1672,7 +1627,6 @@ function desativarNoVFX()
     end
     NoVFXObjects = {}
 
-    -- Restaurar lighting
     pcall(function()
         local lighting = game:GetService("Lighting")
         lighting.GlobalShadows = true
@@ -1681,7 +1635,6 @@ function desativarNoVFX()
         lighting.Brightness = 2
     end)
 
-    -- Restaurar terreno
     pcall(function()
         local terrain = workspace:FindFirstChildOfClass("Terrain")
         if terrain then
