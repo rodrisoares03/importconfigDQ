@@ -111,6 +111,7 @@ local Connections = {}
 local UIToggles = {}
 local UIHovered = false
 local ContentPages = {}
+local SliderRefs = {}
 
 -- =========================================================================
 
@@ -174,12 +175,12 @@ function applySnapshot(data)
     if data.NomePersonalizado ~= nil then NightHub.NomePersonalizado = data.NomePersonalizado end
     if data.VelocidadeExtra ~= nil then NightHub.VelocidadeExtra = data.VelocidadeExtra end
     if data.NoVFXAtivo ~= nil then NightHub.NoVFXAtivo = data.NoVFXAtivo end
-    if data.FlightSpeed ~= nil then NightHub.FlightSpeed = data.FlightSpeed end
+    if data.FlightSpeed ~= nil then NightHub.FlightSpeed = data.FlightSpeed; UpdateSlider("Velocidade do Farm", data.FlightSpeed) end
     if data.FlySpeed ~= nil then NightHub.FlySpeed = data.FlySpeed end
     if data.OrbitMode ~= nil then NightHub.OrbitMode = data.OrbitMode end
-    if data.FixedDepth ~= nil then NightHub.FixedDepth = data.FixedDepth end
-    if data.MaxDetectionRange ~= nil then NightHub.MaxDetectionRange = data.MaxDetectionRange end
-    if data.HitboxSize ~= nil then NightHub.HitboxSize = data.HitboxSize end
+    if data.FixedDepth ~= nil then NightHub.FixedDepth = data.FixedDepth; UpdateSlider("Profundidade", data.FixedDepth) end
+    if data.MaxDetectionRange ~= nil then NightHub.MaxDetectionRange = data.MaxDetectionRange; UpdateSlider("Alcance de Detecção", data.MaxDetectionRange) end
+    if data.HitboxSize ~= nil then NightHub.HitboxSize = data.HitboxSize; UpdateSlider("Tamanho do Hitbox", data.HitboxSize) end
     
     if type(data.AutoSellSettings) == "table" then
         for cat, rarities in pairs(data.AutoSellSettings) do
@@ -410,6 +411,18 @@ function UpdateUIToggle(toggleKey, state)
             Position = targetPos
         }):Play()
     end)
+end
+
+function UpdateSlider(sliderName, newValue)
+    for _, ref in ipairs(SliderRefs) do
+        if ref.Name == sliderName then
+            local percent = math.clamp((newValue - ref.Min) / (ref.Max - ref.Min), 0, 1)
+            ref.ValueLabel.Text = ref.Name .. ": " .. newValue
+            ref.SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+            ref.SliderKnob.Position = UDim2.new(percent, -8, 0.5, -8)
+            break
+        end
+    end
 end
 
 function CreateTab(name)
@@ -680,6 +693,10 @@ function CreateSlider(parent, name, min, max, default, callback)
             callback(value)
         end
     end)
+
+    -- Referências para atualização visual
+    local ref = { ValueLabel = valueLabel, SliderFill = sliderFill, SliderKnob = sliderKnob, Min = min, Max = max, Name = name }
+    table.insert(SliderRefs, ref)
 
     return sliderBar
 end
@@ -1679,7 +1696,7 @@ CreateToggle(FarmPage, "Orbit Mode (gira ao redor dos NPCs)", NightHub.OrbitMode
 CreateSlider(FarmPage, "Velocidade do Farm", 10, 30, NightHub.FlightSpeed, function(value) NightHub.FlightSpeed = value end)
 CreateSlider(FarmPage, "Profundidade", -30, -5, NightHub.FixedDepth, function(value) NightHub.FixedDepth = value end)
 CreateSlider(FarmPage, "Alcance de Detecção", 100, 1000, NightHub.MaxDetectionRange, function(value) NightHub.MaxDetectionRange = value end)
-CreateSlider(FarmPage, "Tamanho do Hitbox", 50, 200, NightHub.HitboxSize, function(value) NightHub.HitboxSize = value end)
+CreateSlider(FarmPage, "Tamanho do Hitbox", 50, 1000, NightHub.HitboxSize, function(value) NightHub.HitboxSize = value end)
 
 -- DUNGEON
 local DungeonPage = CreateTab("Dungeon")
