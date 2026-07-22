@@ -1488,6 +1488,7 @@ end
 -- NoVFX (MODO FPS BAIXO - desativa efeitos mas mantém chão/rendering)
 -- =========================================================================
 local NoVFXObjects = {}
+local NoVFXOriginalMaterials = {}
 
 local function isGroundOrTerrain(obj)
     -- Não mexer no chão/terrain/parts que afetam colisão
@@ -1539,27 +1540,67 @@ function ativarNoVFX()
     if Connections.VFXTerrain then Connections.VFXTerrain:Disconnect() end
     if Connections.VFXLighting then Connections.VFXLighting:Disconnect() end
 
-    -- 1. Desativar VFX existentes (partículas, luzes, sons)
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        disableVFX(obj)
-    end
+    -- Guardar materiais originais para restaurar
+    NoVFXOriginalMaterials = {}
 
-    -- 2. Desativar novos VFX que surgirem
-    Connections.VFX = workspace.DescendantAdded:Connect(disableVFX)
-
-    -- 3. Otimizar terreno — só água e sombras, NÃO mexer na cor/textura
+    -- 1. Terreno fica preto total
     pcall(function()
         local terrain = workspace:FindFirstChildOfClass("Terrain")
         if terrain then
             terrain.WaterWaveSize = 0
             terrain.WaterWaveSpeed = 0
             terrain.WaterReflectance = 0
-            terrain.WaterTransparency = 0.9
+            terrain.WaterTransparency = 1
             terrain.ShadowCast = false
+            terrain.MaterialBrightness = 0
+            terrain.MaterialSaturation = 0
+            terrain.MaterialTint = Color3.fromRGB(0, 0, 0)
         end
     end)
 
-    -- 4. Remover SurfaceGui (ecrãs 3D) que pesam
+    -- 2. Todas as partes ficam pretas (mas com colisão)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        pcall(function()
+            if obj:IsA("BasePart") and not obj:IsA("Terrain") then
+                local char = LocalPlayer.Character
+                if char and obj:IsDescendantOf(char) then return end
+
+                NoVFXOriginalMaterials[obj] = {
+                    Material = obj.Material,
+                    Color = obj.Color,
+                    Reflectance = obj.Reflectance,
+                    Transparency = obj.Transparency
+                }
+
+                obj.Color = Color3.fromRGB(5, 5, 5)
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.Reflectance = 0
+
+                -- Remover texturas/decals
+                for _, child in ipairs(obj:GetChildren()) do
+                    if child:IsA("Texture") or child:IsA("Decal") then
+                        child:Destroy()
+                    end
+                end
+            end
+        end)
+    end
+
+    -- 3. Novas partes também ficam pretas
+    Connections.VFX = workspace.DescendantAdded:Connect(function(obj)
+        if not NightHub.NoVFXAtivo then return end
+        pcall(function()
+            if obj:IsA("BasePart") and not obj:IsA("Terrain") then
+                local char = LocalPlayer.Character
+                if char and obj:IsDescendantOf(char) then return end
+                obj.Color = Color3.fromRGB(5, 5, 5)
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.Reflectance = 0
+            end
+        end)
+    end)
+
+    -- 4. SurfaceGui
     for _, obj in ipairs(workspace:GetDescendants()) do
         pcall(function()
             if obj:IsA("SurfaceGui") then
@@ -1569,15 +1610,18 @@ function ativarNoVFX()
         end)
     end
 
-    -- 5. Otimizar Lighting
+    -- 5. Lighting escuro total
     pcall(function()
         local lighting = game:GetService("Lighting")
         lighting.GlobalShadows = false
         lighting.EnvironmentDiffuseScale = 0
         lighting.EnvironmentSpecularScale = 0
-        lighting.Brightness = 1
+        lighting.Brightness = 0
+        lighting.Ambient = Color3.fromRGB(0, 0, 0)
+        lighting.OutdoorAmbient = Color3.fromRGB(0, 0, 0)
         lighting.ClockTime = 14
         lighting.FogEnd = 100000
+        lighting.FogColor = Color3.fromRGB(0, 0, 0)
 
         for _, effect in ipairs(lighting:GetDescendants()) do
             if effect:IsA("Atmosphere") or effect:IsA("Sky") or effect:IsA("BloomEffect")
@@ -1589,7 +1633,7 @@ function ativarNoVFX()
         end
     end)
 
-    -- 6. Esconder HUDs pesados (só HP bar e exp bar do jogo)
+    -- 6. Esconder HUDs pesados
     pcall(function()
         local playerGui = LocalPlayer:WaitForChild("PlayerGui")
         for _, gui in ipairs(playerGui:GetDescendants()) do
@@ -1604,10 +1648,26 @@ function ativarNoVFX()
         end
     end)
 
-    print("[NoVFX] Modo FPS baixo ativado!")
+    print("[NoVFX] Modo ultra dark ativado!")
 end
 
 function desativarNoVFX()
+    -- Restaurar materiais e cores originais das partes
+    if NoVFXOriginalMaterials then
+        for obj, data in pairs(NoVFXOriginalMaterials) do
+            pcall(function()
+                if obj and obj.Parent then
+                    obj.Material = data.Material
+                    obj.Color = data.Color
+                    obj.Reflectance = data.Reflectance
+                    obj.Transparency = data.Transparency
+                end
+            end)
+        end
+        NoVFXOriginalMaterials = {}
+    end
+
+    -- Restaurar UIs escondidas
     for _, obj in ipairs(NoVFXObjects) do
         pcall(function()
             if obj and obj.Parent then
@@ -1627,14 +1687,19 @@ function desativarNoVFX()
     end
     NoVFXObjects = {}
 
+    -- Restaurar lighting
     pcall(function()
         local lighting = game:GetService("Lighting")
         lighting.GlobalShadows = true
         lighting.EnvironmentDiffuseScale = 1
         lighting.EnvironmentSpecularScale = 1
         lighting.Brightness = 2
+        lighting.Ambient = Color3.fromRGB(80, 80, 80)
+        lighting.OutdoorAmbient = Color3.fromRGB(80, 80, 80)
+        lighting.FogColor = Color3.fromRGB(192, 192, 192)
     end)
 
+    -- Restaurar terreno
     pcall(function()
         local terrain = workspace:FindFirstChildOfClass("Terrain")
         if terrain then
@@ -1642,6 +1707,9 @@ function desativarNoVFX()
             terrain.WaterWaveSpeed = 10
             terrain.WaterReflectance = 0.02
             terrain.WaterTransparency = 0.8
+            terrain.MaterialBrightness = 0.3
+            terrain.MaterialSaturation = 0
+            terrain.MaterialTint = Color3.fromRGB(128, 128, 128)
         end
     end)
 
