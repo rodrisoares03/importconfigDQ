@@ -1574,26 +1574,6 @@ function ativarNoVFX()
         end
     end)
 
-    -- 4. LOOP: desativar novos efeitos que surgem durante o combate
-    Connections.VFXLighting = task.spawn(function()
-        while NightHub.NoVFXAtivo do
-            pcall(function()
-                for _, obj in ipairs(workspace:GetDescendants()) do
-                    if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
-                        or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles")
-                        or obj:IsA("Explosion") then
-                        if obj.Enabled then
-                            obj.Enabled = false
-                            if obj:IsA("Trail") then obj.Transparency = NumberSequence.new(1) end
-                            if obj:IsA("Beam") then obj.Transparency = NumberSequence.new(1) end
-                        end
-                    end
-                end
-            end)
-            task.wait(0.3)
-        end
-    end)
-
     print("[NoVFX] Efeitos visuais desativados!")
 end
 
